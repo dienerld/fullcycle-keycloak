@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { FastifyInstance } from 'fastify';
 import { decode as JwtDecode } from 'jsonwebtoken';
+import { ErrorCodes } from '../utilities/errors/table-code';
 
 type ResponseKeycloak = {
   access_token: string;
@@ -14,8 +15,10 @@ type PayloadJWT = Record<string, unknown>;
 export default async (fastify: FastifyInstance) => {
   fastify.get('/', async (request, reply) => {
     const nonce = crypto.randomBytes(16).toString('hex');
+    const stateParameter = crypto.randomBytes(16).toString('hex');
 
     request.session.set('nonce', nonce);
+    request.session.set('state', stateParameter);
     request.session.save();
 
     const loginParams = new URLSearchParams({
@@ -53,7 +56,9 @@ export default async (fastify: FastifyInstance) => {
     const payloadIdToken = JwtDecode(result.id_token) as PayloadJWT;
 
     if (!payloadAccessToken || !payloadRefreshToken || !payloadIdToken) {
-      return reply.code(401).send('Invalid token');
+      return reply
+        .code(ErrorCodes.AUTH.INVALID_TOKEN.httpCode)
+        .send(ErrorCodes.AUTH.INVALID_TOKEN);
     }
 
     if (
@@ -61,7 +66,9 @@ export default async (fastify: FastifyInstance) => {
       payloadRefreshToken.nonce !== request.session.nonce ||
       payloadIdToken.nonce !== request.session.nonce
     ) {
-      return reply.code(401).send('Invalid nonce');
+      return reply
+        .code(ErrorCodes.AUTH.INVALID_TOKEN.httpCode)
+        .send(ErrorCodes.AUTH.INVALID_TOKEN);
     }
 
     request.session.set('user', payloadAccessToken);
