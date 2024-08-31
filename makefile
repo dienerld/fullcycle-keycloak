@@ -1,5 +1,7 @@
 .PHONY: network network-down network-up
 
+infra-start: app-start keycloak-start
+
 network-down:
 	docker network rm fc-network
 
@@ -38,5 +40,3 @@ keycloak-stop:
 infra-up: network-up app-up keycloak-up
 
 infra-down: network-down app-down keycloak-down
-
-infra-start: app-start keycloak-start
