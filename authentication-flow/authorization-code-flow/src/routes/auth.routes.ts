@@ -15,10 +15,10 @@ type PayloadJWT = Record<string, unknown>;
 export default async (fastify: FastifyInstance) => {
   fastify.get('/', async (request, reply) => {
     const nonce = crypto.randomBytes(16).toString('hex');
-    const stateParameter = crypto.randomBytes(16).toString('hex');
+    const state = crypto.randomBytes(16).toString('hex');
 
     request.session.set('nonce', nonce);
-    request.session.set('state', stateParameter);
+    request.session.set('state', state);
     request.session.save();
 
     const loginParams = new URLSearchParams({
@@ -27,21 +27,35 @@ export default async (fastify: FastifyInstance) => {
       response_type: 'code',
       scope: 'openid',
       nonce,
+      state,
     });
     const url = `http://localhost:8083/realms/fc-realm/protocol/openid-connect/auth?${loginParams.toString()}`;
     reply.redirect(url);
   });
 
-  fastify.get('/callback', async (request, reply) => {
-    const { code } = request.query as { code: string };
+  fastify.get<{
+    Querystring: {
+      code: string;
+      state: string;
+    };
+  }>('/callback', async (request, reply) => {
+    if (request.session.user) {
+      return reply.redirect('/admin');
+    }
+
+    if (!request.session.state || request.session.state !== request.query.state) {
+      return reply.code(ErrorCodes.AUTH.UNAUTHORIZED.httpCode).send(ErrorCodes.AUTH.UNAUTHORIZED);
+    }
+
+    const { code } = request.query;
     const params = new URLSearchParams({
       client_id: 'fc-client',
       grant_type: 'authorization_code',
       redirect_uri: 'http://localhost:3000/auth/callback',
       code,
     });
-    const url =
-      'http://keycloak:8080/realms/fc-realm/protocol/openid-connect/token';
+
+    const url = 'http://keycloak:8080/realms/fc-realm/protocol/openid-connect/token';
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -56,9 +70,7 @@ export default async (fastify: FastifyInstance) => {
     const payloadIdToken = JwtDecode(result.id_token) as PayloadJWT;
 
     if (!payloadAccessToken || !payloadRefreshToken || !payloadIdToken) {
-      return reply
-        .code(ErrorCodes.AUTH.INVALID_TOKEN.httpCode)
-        .send(ErrorCodes.AUTH.INVALID_TOKEN);
+      return reply.code(ErrorCodes.AUTH.INVALID_TOKEN.httpCode).send(ErrorCodes.AUTH.INVALID_TOKEN);
     }
 
     if (
@@ -66,9 +78,7 @@ export default async (fastify: FastifyInstance) => {
       payloadRefreshToken.nonce !== request.session.nonce ||
       payloadIdToken.nonce !== request.session.nonce
     ) {
-      return reply
-        .code(ErrorCodes.AUTH.INVALID_TOKEN.httpCode)
-        .send(ErrorCodes.AUTH.INVALID_TOKEN);
+      return reply.code(ErrorCodes.AUTH.INVALID_TOKEN.httpCode).send(ErrorCodes.AUTH.INVALID_TOKEN);
     }
 
     request.session.set('user', payloadAccessToken);

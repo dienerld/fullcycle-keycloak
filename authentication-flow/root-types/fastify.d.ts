@@ -3,6 +3,7 @@ import 'fastify';
 import '@fastify/session';
 
 declare module 'fastify' {
+
   interface Session {
     // configurations keycloak
     nonce?: string;

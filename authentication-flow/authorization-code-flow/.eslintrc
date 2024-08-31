@@ -1,5 +1,21 @@
 {
   "extends": [
     "dienerld/node"
-  ]
+  ],
+  "rules": {
+    "prettier/prettier": [
+      "error",
+      {
+        "endOfLine": "auto",
+        "singleQuote": true,
+        "trailingComma": "all",
+        "tabWidth": 2,
+        "semi": true,
+        "printWidth": 100
+      },
+      {
+        "usePrettierrc": false
+      }
+    ]
+  }
 }

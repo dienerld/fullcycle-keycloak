@@ -12,6 +12,11 @@ export const ErrorCodes = {
       message: 'Usuário não encontrado.',
       httpCode: 404,
     },
+    UNAUTHORIZED: {
+      code: 'AUTH_003',
+      message: 'Permissão não autorizada.',
+      httpCode: 403,
+    },
   },
   VALIDATION: {
     INVALID_REQUEST: {
