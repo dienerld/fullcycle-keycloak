@@ -1,0 +1,15 @@
+name: keycloak-fc-auth-flow
+
+services:
+  app:
+    build: .
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/home/node/app
+    networks:
+      - fc-network
+
+networks:
+  fc-network:
+    external: true
