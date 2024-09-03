@@ -17,11 +17,12 @@ export function Callback() {
     const accessToken = searchParams.get('access_token');
     const idToken = searchParams.get('id_token');
     const state = searchParams.get('state');
+    const code = searchParams.get('code');
 
-    if (!accessToken || !idToken || !state) {
+    if (!accessToken || !idToken || !state || !code) {
       throw new Error('Invalid callback');
     }
-    login(accessToken, idToken, state);
+    login(accessToken, idToken, code, state);
   }, [hash, login, auth, navigate]);
 
   return (

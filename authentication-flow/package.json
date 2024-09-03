@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "acf:dev": "yarn workspace authorization-code-flow dev",
-    "if:dev": "yarn workspace implicit-flow dev"
+    "if:dev": "yarn workspace implicit-flow dev",
+    "hf:dev": "yarn workspace hybrid-flow dev"
   }
 }

@@ -11,7 +11,7 @@ export function makeLoginUrl() {
   const loginParams = new URLSearchParams({
     client_id: 'fc-client',
     redirect_uri: 'http://localhost:5173/callback',
-    response_type: 'token id_token',
+    response_type: 'token id_token code',
     scope: 'openid',
     nonce,
     state,
@@ -21,25 +21,35 @@ export function makeLoginUrl() {
   return url;
 }
 
-export function login(accessToken: string, idToken: string, state: string) {
+export function login(
+  accessToken: string,
+  idToken: string | null,
+  refreshToken?: string,
+  state?: string,
+) {
   const stateCookie = Cookies.get('state');
-  if (stateCookie !== state) {
+  if (state && stateCookie !== state) {
     throw new Error('Invalid state');
   }
 
   const decodedAccessToken = jwtDecode(accessToken) as Record<string, unknown>;
-  const decodedIdToken = jwtDecode(idToken) as Record<string, unknown>;
+  const decodedIdToken = idToken ? (jwtDecode(idToken) as Record<string, unknown>) : null;
+  const decodedRefreshToken = refreshToken
+    ? (jwtDecode(refreshToken) as Record<string, unknown>)
+    : null;
 
   if (
     decodedAccessToken.nonce !== Cookies.get('nonce') ||
-    decodedIdToken.nonce !== Cookies.get('nonce')
+    (decodedIdToken && decodedIdToken.nonce !== Cookies.get('nonce')) ||
+    (decodedRefreshToken && decodedRefreshToken.nonce !== Cookies.get('nonce'))
   ) {
     throw new Error('Invalid token');
   }
 
   Cookies.set('accessToken', accessToken);
-  Cookies.set('idToken', idToken);
-
+  if (idToken) {
+    Cookies.set('idToken', idToken);
+  }
   return decodedAccessToken;
 }
 
@@ -74,4 +84,26 @@ export function makeLogoutUrl() {
   const url = `http://localhost:8083/realms/fc-realm/protocol/openid-connect/logout?${logoutParams.toString()}`;
 
   return url;
+}
+
+export function exchangeCodeForTokens(code: string) {
+  const tokenUrlParams = new URLSearchParams({
+    client_id: 'fullcycle-client',
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: 'http://localhost:5173/callback',
+    nonce: Cookies.get('nonce') as string,
+  });
+
+  return fetch('http://localhost:8083/realms/fc-realm/protocol/openid-connect/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: tokenUrlParams.toString(),
+  })
+    .then((res) => res.json())
+    .then((res) => {
+      return login(res.access_token, null, res.refresh_token);
+    });
 }
